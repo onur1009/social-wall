@@ -66,12 +66,13 @@ async def root():
 
 
 @app.get("/wall")
+@app.get("/wall.html")
 async def wall_page():
     """Wall sayfası."""
     wall = FRONTEND_DIR / "wall.html"
     if wall.exists():
         return FileResponse(str(wall))
-    return {"error": "wall.html bulunamadı"}
+    return {"error": "wall.html bulunamadı", "frontend_dir": str(FRONTEND_DIR), "exists": FRONTEND_DIR.exists()}
 
 
 @app.get("/api/posts")
