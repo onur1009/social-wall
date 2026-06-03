@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Social Wall — Canlı Akış</title>
+  <meta name="description" content="Sosyal medya canlı duvarı — keyword bazlı gerçek zamanlı içerik akışı" />
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/wall.css" />
+  <style>
+    body { overflow-x: hidden; }
+
+    /* Particle bg */
+    .particles {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .particle {
+      position: absolute;
+      border-radius: 50%;
+      opacity: 0;
+      animation: floatUp var(--dur, 8s) ease-in var(--delay, 0s) infinite;
+    }
+    @keyframes floatUp {
+      0%   { opacity: 0; transform: translateY(0) scale(0.5); }
+      10%  { opacity: 0.5; }
+      90%  { opacity: 0.15; }
+      100% { opacity: 0; transform: translateY(-100vh) scale(1.3); }
+    }
+  </style>
+</head>
+<body>
+<div class="wall-wrapper" id="wall-wrapper">
+
+  <!-- Animated Particles -->
+  <div class="particles" id="particles"></div>
+
+  <!-- Loading Overlay -->
+  <div class="wall-loading" id="wall-loading">
+    <div class="wall-loading-platforms" id="loading-plat-icons">📡</div>
+    <div class="wall-loading-orb"></div>
+    <div class="wall-loading-text">İçerikler yükleniyor…</div>
+  </div>
+
+  <!-- Fixed Top Bar -->
+  <header class="wall-topbar">
+    <div class="wall-topbar-left">
+      <!-- Live dot -->
+      <div class="live-dot"></div>
+      <span class="wall-title">📡 Social<span style="color:#a5b4fc;">Wall</span></span>
+
+      <!-- Keywords strip -->
+      <div class="wall-keywords-strip" id="keywords-strip"></div>
+
+      <!-- Platform filters -->
+      <div class="platform-filters" id="platform-filters">
+        <button class="platform-chip active" data-plat="all">Tümü</button>
+        <button class="platform-chip" data-plat="twitter"   title="Twitter/X">𝕏 X</button>
+        <button class="platform-chip" data-plat="news"      title="Haberler">📰 Haber</button>
+        <button class="platform-chip" data-plat="facebook"  title="Facebook">📘 FB</button>
+        <button class="platform-chip" data-plat="linkedin"  title="LinkedIn">💼 LI</button>
+      </div>
+    </div>
+
+    <div class="wall-topbar-right">
+      <!-- Post count -->
+      <span class="wall-post-count" id="post-count">— gönderi</span>
+
+      <!-- Countdown ring -->
+      <div class="countdown-wrap" title="Sonraki güncelleme">
+        <svg class="countdown-ring" viewBox="0 0 30 30">
+          <circle class="countdown-bg"   cx="15" cy="15" r="12"/>
+          <circle class="countdown-prog" id="countdown-ring-prog" cx="15" cy="15" r="12"/>
+        </svg>
+        <div class="countdown-num" id="next-refresh">60</div>
+      </div>
+
+      <!-- Refresh btn -->
+      <button id="refresh-btn"   class="topbar-icon-btn" title="Şimdi yenile">🔄</button>
+
+      <!-- Kiosk btn -->
+      <button id="kiosk-btn"     class="topbar-icon-btn" title="Kiosk / TV modu">📺</button>
+
+      <!-- Fullscreen -->
+      <button id="fullscreen-btn" class="topbar-icon-btn" title="Tam Ekran">⛶</button>
+
+      <!-- Back -->
+      <button id="back-btn"      class="topbar-icon-btn" title="Panele dön">←</button>
+    </div>
+  </header>
+
+  <!-- New Posts Float Button -->
+  <button class="new-posts-btn" id="new-posts-btn"></button>
+
+  <!-- Wall Content -->
+  <div class="wall-content">
+    <div class="wall-grid" id="wall-grid">
+      <!-- Cards injected by wall.js -->
+    </div>
+  </div>
+
+  <!-- Refresh Progress Bar -->
+  <div class="refresh-bar-wrapper">
+    <div class="refresh-bar" id="refresh-bar" style="width:0%"></div>
+  </div>
+
+  <!-- News Ticker -->
+  <div class="news-ticker" id="news-ticker">
+    <div class="ticker-label">
+      <span>📰</span> SON DAKİKA
+    </div>
+    <div class="ticker-track">
+      <div class="ticker-inner" id="ticker-inner">
+        <!-- filled by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="wall-toast"></div>
+
+</div>
+
+<script src="js/wall.js"></script>
+<script>
+/* ── Particle system ── */
+(function spawnParticles() {
+  const container = document.getElementById('particles');
+  const colors = ['#6366f1','#8b5cf6','#1d9bf0','#e1306c','#ff4500','#69c9d0','#f59e0b','#22c55e'];
+  for (let i = 0; i < 22; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    const size = Math.random() * 6 + 2;
+    p.style.cssText = `
+      width:${size}px; height:${size}px;
+      left:${Math.random()*100}%;
+      bottom:${Math.random()*15}%;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      --dur:${7+Math.random()*12}s;
+      --delay:${Math.random()*10}s;
+    `;
+    container.appendChild(p);
+  }
+})();
+
+/* ── Countdown ring ── */
+(function initRing() {
+  const CIRC = 2 * Math.PI * 12; // r=12 → ~75.4
+  const prog  = document.getElementById('countdown-ring-prog');
+  const numEl = document.getElementById('next-refresh');
+  if (!prog || !numEl) return;
+  const TOTAL = 60;
+  let sec = TOTAL;
+  prog.style.strokeDasharray  = CIRC;
+  prog.style.strokeDashoffset = 0;
+  setInterval(() => {
+    sec--;
+    if (sec < 0) sec = TOTAL;
+    prog.style.strokeDashoffset = CIRC * (1 - sec / TOTAL);
+    numEl.textContent = sec + 's';
+  }, 1000);
+})();
+
+/* ── Fullscreen ── */
+document.getElementById('fullscreen-btn').addEventListener('click', () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen();
+    document.getElementById('fullscreen-btn').textContent = '✕';
+  } else {
+    document.exitFullscreen();
+    document.getElementById('fullscreen-btn').textContent = '⛶';
+  }
+});
+
+/* ── Kiosk mode ── */
+(function initKiosk() {
+  const btn     = document.getElementById('kiosk-btn');
+  const wrapper = document.getElementById('wall-wrapper');
+  let kioskTimer = null;
+  let isKiosk = false;
+
+  btn.addEventListener('click', () => {
+    isKiosk = !isKiosk;
+    if (isKiosk) {
+      wrapper.classList.add('kiosk-mode');
+      btn.classList.add('active');
+      // Auto-scroll
+      kioskTimer = setInterval(() => {
+        const wallContent = document.querySelector('.wall-content');
+        const maxScroll = document.body.scrollHeight - window.innerHeight;
+        if (window.scrollY >= maxScroll - 10) {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+          window.scrollBy({ top: 2, behavior: 'instant' });
+        }
+      }, 40);
+    } else {
+      wrapper.classList.remove('kiosk-mode');
+      btn.classList.remove('active');
+      clearInterval(kioskTimer);
+    }
+  });
+})();
+</script>
+</body>
+</html>

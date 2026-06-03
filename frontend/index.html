@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Social Wall — Kontrol Paneli</title>
+  <meta name="description" content="Sosyal medya canlı duvarı — keyword bazlı tweet wall kurulum paneli" />
+  <link rel="stylesheet" href="css/main.css" />
+  <style>
+    /* ── Page Layout ── */
+    .page {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    .header {
+      padding: 28px 40px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 4px 20px rgba(99,102,241,0.4);
+    }
+
+    .logo-text {
+      font-family: var(--font-head);
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .logo-text span { color: #a5b4fc; }
+
+    .header-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 100px;
+      font-size: 12px;
+    }
+
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #4a5568;
+      transition: background 0.3s;
+    }
+
+    .status-dot.online  { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+    .status-dot.offline { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+
+    /* ── Main Content ── */
+    .main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 28px;
+      padding: 32px 40px 40px;
+      max-width: 1200px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 900px) {
+      .main { grid-template-columns: 1fr; padding: 20px; }
+      .header { padding: 20px; }
+    }
+
+    /* ── Section Title ── */
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    /* ── Keyword Panel ── */
+    .keyword-panel { display: flex; flex-direction: column; gap: 24px; }
+
+    .keyword-input-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .keyword-input-wrap {
+      flex: 1;
+      position: relative;
+    }
+
+    .keyword-input-wrap .input-icon {
+      position: absolute;
+      left: 14px; top: 50%;
+      transform: translateY(-50%);
+      font-size: 14px;
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    #keyword-input {
+      padding-left: 38px;
+    }
+
+    .tag-section {
+      padding: 20px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      min-height: 80px;
+    }
+
+    .tag-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    #tag-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    /* ── Platforms ── */
+    .platforms-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .platform-item.reddit .toggle input:checked + .toggle-slider  { background: #ff4500; border-color: #ff4500; }
+    .platform-item.tiktok .toggle input:checked + .toggle-slider  { background: #69c9d0; border-color: #69c9d0; }
+
+    .platform-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      transition: border-color 0.2s, background 0.2s;
+      cursor: pointer;
+    }
+
+    .platform-item:hover {
+      background: rgba(255,255,255,0.06);
+      border-color: rgba(255,255,255,0.12);
+    }
+
+    .platform-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .platform-emoji { font-size: 20px; }
+
+    .platform-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .platform-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    /* ── Side Panel ── */
+    .side-panel { display: flex; flex-direction: column; gap: 20px; }
+
+    .launch-card {
+      padding: 28px;
+      background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08));
+      border: 1px solid rgba(99,102,241,0.2);
+      border-radius: var(--radius-xl);
+      text-align: center;
+    }
+
+    .launch-title {
+      font-family: var(--font-head);
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .launch-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+
+    #launch-wall-btn {
+      width: 100%;
+      padding: 14px;
+      font-size: 15px;
+      justify-content: center;
+      border-radius: var(--radius-md);
+    }
+
+    .launch-meta {
+      margin-top: 14px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .stats-row {
+      display: flex;
+      justify-content: center;
+      gap: 28px;
+      margin-bottom: 24px;
+    }
+
+    .stat-item { text-align: center; }
+    .stat-value {
+      font-family: var(--font-head);
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* ── Info Card ── */
+    .info-card {
+      padding: 18px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+    }
+
+    .info-card h4 {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--text-secondary);
+    }
+
+    .info-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .info-item:last-child { border-bottom: none; }
+    .info-item strong { color: var(--text-secondary); }
+
+    /* ── Tip Box ── */
+    .tip-box {
+      padding: 14px 16px;
+      background: rgba(245,158,11,0.07);
+      border: 1px solid rgba(245,158,11,0.18);
+      border-radius: var(--radius-md);
+      font-size: 12px;
+      color: #fbbf24;
+      line-height: 1.6;
+    }
+
+    .tip-box strong { display: block; margin-bottom: 4px; }
+
+    /* ── Shake animation ── */
+    @keyframes shake {
+      0%,100%{ transform: translateX(0); }
+      20%    { transform: translateX(-6px); }
+      40%    { transform: translateX(6px); }
+      60%    { transform: translateX(-4px); }
+      80%    { transform: translateX(4px); }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="logo">
+      <div class="logo-icon">📡</div>
+      <div class="logo-text">Social<span>Wall</span></div>
+    </div>
+    <div class="header-status">
+      <div class="status-dot" id="api-status-dot"></div>
+      <span id="api-status-text" style="color:var(--text-muted)">Bağlantı kontrol ediliyor…</span>
+    </div>
+  </header>
+
+  <!-- Main Grid -->
+  <main class="main">
+
+    <!-- Left: Keywords + Platforms -->
+    <div class="keyword-panel">
+
+      <!-- Keyword Input -->
+      <div class="animate-in">
+        <p class="section-label">🔍 Anahtar Kelimeler</p>
+        <div class="keyword-input-row">
+          <div class="keyword-input-wrap">
+            <span class="input-icon">#</span>
+            <input
+              id="keyword-input"
+              class="input"
+              type="text"
+              placeholder="yapay zeka, bitcoin, teknoloji… (virgülle ayırın)"
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </div>
+          <button id="add-keyword-btn" class="btn btn-primary">+ Ekle</button>
+        </div>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:8px;">
+          Birden fazla keyword için virgül kullanın &nbsp;·&nbsp; Max 15 keyword
+        </p>
+      </div>
+
+      <!-- Tag Container -->
+      <div class="tag-section animate-in">
+        <div class="tag-section-header">
+          <p class="section-label" style="margin:0;">Eklenen Keywordler</p>
+          <span style="font-size:12px;color:var(--text-muted);">
+            <strong id="keyword-count" style="color:var(--text-primary);">0</strong> / 15
+          </span>
+        </div>
+        <div id="tag-container"></div>
+      </div>
+
+      <!-- Platform Toggles -->
+      <div class="animate-in">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <p class="section-label" style="margin:0;">📡 Platformlar</p>
+          <span style="font-size:11px;color:var(--text-muted);">
+            <span id="active-platform-count" style="color:var(--text-primary);">4</span> aktif
+          </span>
+        </div>
+        <div class="platforms-grid">
+
+          <label class="platform-item">
+            <div class="platform-info">
+              <span class="platform-emoji">𝕏</span>
+              <div>
+                <div class="platform-name">Twitter / X</div>
+                <div class="platform-desc">Gerçek zamanlı</div>
+              </div>
+            </div>
+            <label class="toggle platform-toggle twitter">
+              <input class="platform-toggle-input" type="checkbox" data-platform="twitter" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </label>
+
+          <label class="platform-item">
+            <div class="platform-info">
+              <span class="platform-emoji">📘</span>
+              <div>
+                <div class="platform-name">Facebook</div>
+                <div class="platform-desc">Haber sayfaları RSS</div>
+              </div>
+            </div>
+            <label class="toggle platform-toggle facebook">
+              <input class="platform-toggle-input" type="checkbox" data-platform="facebook" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </label>
+
+          <label class="platform-item">
+            <div class="platform-info">
+              <span class="platform-emoji">💼</span>
+              <div>
+                <div class="platform-name">LinkedIn</div>
+                <div class="platform-desc">İş dünyası RSS</div>
+              </div>
+            </div>
+            <label class="toggle platform-toggle linkedin">
+              <input class="platform-toggle-input" type="checkbox" data-platform="linkedin" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </label>
+
+          <label class="platform-item" style="grid-column:span 2;">
+            <div class="platform-info">
+              <span class="platform-emoji">📰</span>
+              <div>
+                <div class="platform-name">Haber Kaynakları</div>
+                <div class="platform-desc">30+ TR kaynağı · Google News · BBC · Reuters</div>
+              </div>
+            </div>
+            <label class="toggle platform-toggle news">
+              <input class="platform-toggle-input" type="checkbox" data-platform="news" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </label>
+
+        </div>
+      </div>
+
+    </div><!-- /left -->
+
+    <!-- Right: Launch Panel -->
+    <div class="side-panel">
+
+      <div class="launch-card animate-in">
+        <div class="launch-title text-gradient">🚀 Duvarı Başlat</div>
+        <p class="launch-desc">
+          Seçtiğiniz platformlardan keyword bazlı içerikler toplanır
+          ve canlı duvarda gösterilir.
+        </p>
+
+        <div class="stats-row">
+          <div class="stat-item">
+            <div class="stat-value text-gradient" id="keyword-count-big">0</div>
+            <div class="stat-label">Keyword</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value text-gradient" id="active-platform-count-big">7</div>
+            <div class="stat-label">Platform</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value text-gradient">60s</div>
+            <div class="stat-label">Yenileme</div>
+          </div>
+        </div>
+
+        <button id="launch-wall-btn" class="btn btn-primary" disabled>
+          <span>📺</span> Canlı Duvarı Aç
+        </button>
+        <p class="launch-meta">Yeni sekmede açılır · Tam ekran önerilir</p>
+      </div>
+
+      <div class="info-card animate-in">
+        <h4>ℹ️ Nasıl Çalışır?</h4>
+        <div class="info-item">
+          <span>1️⃣</span>
+          <span><strong>Keyword ekle</strong> — takip etmek istediğin konuları gir</span>
+        </div>
+        <div class="info-item">
+          <span>2️⃣</span>
+          <span><strong>Platform seç</strong> — hangi kanalları izleyeceğini belirle</span>
+        </div>
+        <div class="info-item">
+          <span>3️⃣</span>
+          <span><strong>Başlat</strong> — animasyonlu canlı duvar açılır</span>
+        </div>
+        <div class="info-item">
+          <span>🔄</span>
+          <span><strong>Otomatik güncelleme</strong> — her 60 saniyede yeni içerik</span>
+        </div>
+      </div>
+
+      <div class="tip-box animate-in">
+        <strong>💡 İpucu</strong>
+        Haber API'si için <code style="background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:4px;">backend/.env</code>
+        dosyasına NewsAPI key ekleyebilirsiniz.
+        <a href="https://newsapi.org" target="_blank" style="color:#f59e0b;margin-left:4px;">newsapi.org →</a>
+      </div>
+
+    </div><!-- /right -->
+
+  </main>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+  // Sync secondary stat counters
+  const kwBig = document.getElementById('keyword-count-big');
+  const plBig = document.getElementById('active-platform-count-big');
+  const kwObs = new MutationObserver(() => { kwBig.textContent = document.getElementById('keyword-count').textContent; });
+  const plObs = new MutationObserver(() => { plBig.textContent = document.getElementById('active-platform-count').textContent; });
+  kwObs.observe(document.getElementById('keyword-count'), { childList:true, characterData:true, subtree:true });
+  plObs.observe(document.getElementById('active-platform-count'), { childList:true, characterData:true, subtree:true });
+</script>
+</body>
+</html>
