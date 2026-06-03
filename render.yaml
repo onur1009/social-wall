@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: social-wall
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    region: frankfurt
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: HOST
+        value: "0.0.0.0"
+      - key: XPOZ_API_KEY
+        sync: false   # Dashboard'dan girilecek — güvenli
