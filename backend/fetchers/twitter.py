@@ -41,14 +41,33 @@ def _xpoz_twitter_worker(api_key: str, keywords: List[str]) -> List[Dict]:
                         pass
             except Exception as e:
                 print(f"[Twitter/worker] '{keyword}' hata: {e}")
+                results.append(("_error", {"error": str(e), "keyword": keyword}))
         client.close()
     except Exception as e:
         print(f"[Twitter/worker] Genel hata: {e}")
+        results.append(("_error", {"error": str(e), "keyword": "genel"}))
     return results
 
 
 def _format_tweet(post_dict: dict, keyword: str) -> Optional[Dict]:
     """Serileştirilmiş tweet dict'ini kart formatına çevirir."""
+    if keyword == "_error":
+        return {
+            "id": f"tw_err_{int(time.time())}_{random.randint(100,999)}",
+            "platform": "twitter",
+            "text": f"DEBUG ERROR: {post_dict.get('error')} (kw: {post_dict.get('keyword')})",
+            "author": "System Error",
+            "username": "@error",
+            "avatar": "",
+            "timestamp": int(time.time()),
+            "url": "#",
+            "likes": 0,
+            "shares": 0,
+            "keyword": post_dict.get("keyword"),
+            "media": None,
+            "is_demo": False,
+        }
+
     try:
         text = post_dict.get("text", post_dict.get("full_text", ""))
         author_name = post_dict.get("author_name", post_dict.get("name", ""))
