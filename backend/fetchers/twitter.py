@@ -144,12 +144,10 @@ async def fetch_twitter(keywords: List[str], api_key: str = "") -> List[Dict]:
 
     if api_key:
         try:
-            loop = asyncio.get_event_loop()
-            with ProcessPoolExecutor(max_workers=1) as pool:
-                raw_results = await asyncio.wait_for(
-                    loop.run_in_executor(pool, _xpoz_twitter_worker, api_key, keywords),
-                    timeout=30,
-                )
+            raw_results = await asyncio.wait_for(
+                asyncio.to_thread(_xpoz_twitter_worker, api_key, keywords),
+                timeout=30,
+            )
 
             for keyword, post_dict in raw_results:
                 formatted = _format_tweet(post_dict, keyword)
@@ -159,8 +157,6 @@ async def fetch_twitter(keywords: List[str], api_key: str = "") -> List[Dict]:
             print(f"[Twitter] xpoz'dan {len(all_posts)} tweet çekildi")
         except asyncio.TimeoutError:
             print("[Twitter] xpoz timeout (30s) — demo'ya geçiliyor")
-        except FutureTimeoutError:
-            print("[Twitter] ProcessPool timeout — demo'ya geçiliyor")
         except Exception as e:
             print(f"[Twitter] xpoz hata: {e} — demo'ya geçiliyor")
 
