@@ -176,8 +176,10 @@ async def fetch_twitter(keywords: List[str], api_key: str = "") -> List[Dict]:
             print(f"[Twitter] xpoz'dan {len(all_posts)} tweet çekildi")
         except asyncio.TimeoutError:
             print("[Twitter] xpoz timeout (30s) — demo'ya geçiliyor")
+            all_posts.append(_format_tweet({"error": "Timeout in asyncio.to_thread", "keyword": "timeout"}, "_error"))
         except Exception as e:
             print(f"[Twitter] xpoz hata: {e} — demo'ya geçiliyor")
+            all_posts.append(_format_tweet({"error": f"fetch_twitter_err: {e}", "keyword": "fetch_twitter"}, "_error"))
 
     if not all_posts:
         print("[Twitter] Demo data kullanılıyor")
