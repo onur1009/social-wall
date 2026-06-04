@@ -52,8 +52,8 @@ STATIC_RSS_FEEDS = {
     "Reuters":          "https://feeds.reuters.com/reuters/topNews",
     "TechCrunch":       "https://techcrunch.com/feed/",
     # Keyword bazlı dinamik
-    "Google News TR":   "https://news.google.com/rss/search?q={keyword}&hl=tr&gl=TR&ceid=TR:tr",
-    "Google News EN":   "https://news.google.com/rss/search?q={keyword}&hl=en&gl=TR&ceid=TR:en",
+    "Google News TR":   "https://news.google.com/rss/search?q={keyword}+when:30d&hl=tr&gl=TR&ceid=TR:tr",
+    "Google News EN":   "https://news.google.com/rss/search?q={keyword}+when:30d&hl=en&gl=TR&ceid=TR:en",
 }
 
 NEWSAPI_URL = "https://newsapi.org/v2/everything"
