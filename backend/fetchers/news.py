@@ -137,11 +137,6 @@ async def _fetch_rss(url: str, source_name: str, keyword: str, client: httpx.Asy
             feed = feedparser.parse(resp.text)
             for entry in feed.entries[:6]:
                 try:
-                    title   = _clean_html(getattr(entry, "title", ""))
-                    summary = _clean_html(getattr(entry, "summary", getattr(entry, "description", "")))
-                    full    = f"{title} {summary}".lower()
-                    if keyword.lower() not in full:
-                        continue
                     posts.append(_format_rss_entry(entry, source_name, keyword))
                 except Exception:
                     pass
@@ -181,10 +176,6 @@ async def _fetch_newsapi(keyword: str, api_key: str, client: httpx.AsyncClient) 
                 source = article.get("source", {}).get("name", "NewsAPI")
                 url    = article.get("url", "#")
                 domain = url.split("/")[2] if url.startswith("http") else "news"
-                title = article.get('title', '')
-                description = article.get('description', '')
-                if keyword.lower() not in f"{title} {description}".lower():
-                    continue
                 posts.append({
                     "id":       f"news_api_{abs(hash(url)) % (10**12)}",
                     "platform": "news",

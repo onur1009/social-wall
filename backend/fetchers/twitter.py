@@ -70,8 +70,6 @@ def _format_tweet(post_dict: dict, keyword: str) -> Optional[Dict]:
 
     try:
         text = post_dict.get("text", post_dict.get("full_text", ""))
-        if keyword.lower() not in str(text).lower():
-            return None
         author_name = post_dict.get("author_name", post_dict.get("name", ""))
         username = post_dict.get(
             "author_username",
