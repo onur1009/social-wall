@@ -94,6 +94,8 @@ async def _fetch_twitter_as_fb(username: str, page_name: str, keyword: str,
 
         for d in raw:
             text = d.get("text", "")
+            if keyword.lower() not in text.lower():
+                continue
             post_id = str(d.get("id", ""))
             author  = str(d.get("author_username", d.get("username", "user")))
             ts = int(time.time())
@@ -167,34 +169,6 @@ async def _fetch_meta_newsroom_rss(keyword: str, client: httpx.AsyncClient) -> L
     return posts
 
 
-def _generate_demo_fb(keywords: List[str]) -> List[Dict]:
-    pages = [
-        ("Hürriyet",          "hurriyet",       "📰"),
-        ("CNN Türk",           "cnnturk",        "📺"),
-        ("NTV",                "ntv",            "📡"),
-        ("Sabah",              "sabah",          "🗞️"),
-        ("Teknoloji Haberleri","teknoloji_tr",   "💻"),
-    ]
-    posts = []
-    for keyword in keywords[:3]:
-        for i, (name, uid, icon) in enumerate(pages[:3]):
-            ts = int(time.time()) - random.randint(3600, 86400)
-            posts.append({
-                "id":       f"fb_demo_{keyword}_{i}_{ts}",
-                "platform": "facebook",
-                "text":     f"{icon} {keyword.title()} hakkında son dakika paylaşımı. Bu konuyu takip etmeye devam ediyoruz. Topluluğumuzla bilgi paylaşmak için sayfamızı beğenin.",
-                "author":   name,
-                "username": f"facebook.com/{uid}",
-                "avatar":   f"https://www.google.com/s2/favicons?domain=facebook.com&sz=64",
-                "timestamp": ts,
-                "url":      f"https://facebook.com/{uid}",
-                "likes":    random.randint(100, 10000),
-                "shares":   random.randint(20, 2000),
-                "keyword":  keyword,
-                "media":    f"https://picsum.photos/seed/fb{keyword}{i}/600/315" if i % 2 == 0 else None,
-                "is_demo":  True,
-            })
-    return posts
 
 
 
@@ -275,12 +249,9 @@ async def _fetch_fb_rss(url: str, source_name: str, keywords: List[str],
                 }
                 if matched:
                     matched_posts.append(post)
-                else:
-                    fallback_posts.append(post)
             except Exception:
                 pass
-        # Önce keyword eşleşenleri al, yoksa en güncel 3 haberi fallback olarak göster
-        posts = matched_posts if matched_posts else fallback_posts[:3]
+        posts = matched_posts
     except Exception:
         pass
     return posts
@@ -310,10 +281,6 @@ async def fetch_facebook(keywords: List[str], api_key: str = "") -> List[Dict]:
             if post.get("id") not in seen_ids:
                 seen_ids.add(post["id"])
                 all_posts.append(post)
-
-    if not all_posts:
-        print("[Facebook] Gerçek veri çekilemedi — demo data kullanılıyor")
-        all_posts = _generate_demo_fb(keywords)
 
     all_posts.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
     print(f"[Facebook] Toplam {len(all_posts)} post")

@@ -137,6 +137,11 @@ async def _fetch_rss(url: str, source_name: str, keyword: str, client: httpx.Asy
             feed = feedparser.parse(resp.text)
             for entry in feed.entries[:6]:
                 try:
+                    title   = _clean_html(getattr(entry, "title", ""))
+                    summary = _clean_html(getattr(entry, "summary", getattr(entry, "description", "")))
+                    full    = f"{title} {summary}".lower()
+                    if keyword.lower() not in full:
+                        continue
                     posts.append(_format_rss_entry(entry, source_name, keyword))
                 except Exception:
                     pass
@@ -176,6 +181,10 @@ async def _fetch_newsapi(keyword: str, api_key: str, client: httpx.AsyncClient) 
                 source = article.get("source", {}).get("name", "NewsAPI")
                 url    = article.get("url", "#")
                 domain = url.split("/")[2] if url.startswith("http") else "news"
+                title = article.get('title', '')
+                description = article.get('description', '')
+                if keyword.lower() not in f"{title} {description}".lower():
+                    continue
                 posts.append({
                     "id":       f"news_api_{abs(hash(url)) % (10**12)}",
                     "platform": "news",
@@ -242,10 +251,6 @@ async def fetch_news(keywords: List[str], api_key: str = "") -> List[Dict]:
     # Zaman damgasına göre sırala
     all_posts.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
 
-    if not all_posts:
-        print("[News] Hiç haber çekilemedi, demo döndürülüyor")
-        all_posts = _generate_demo_news(keywords)
-
     print(f"[News] Toplam {len(all_posts)} haber ({len(static_sources)} statik kaynak + Google News + NewsAPI)")
     return all_posts[:80]  # max 80
 
@@ -276,26 +281,3 @@ async def _fetch_static_rss(url: str, source_name: str, keywords: List[str], cli
     return posts
 
 
-def _generate_demo_news(keywords: List[str]) -> List[Dict]:
-    sources = ["Hürriyet", "Sabah", "CNN Türk", "NTV", "Habertürk", "AA", "TRT Haber"]
-    posts   = []
-    for keyword in keywords[:3]:
-        for i, source in enumerate(sources[:4]):
-            ts = int(time.time()) - random.randint(600, 14400)
-            posts.append({
-                "id":       f"news_demo_{keyword}_{i}_{ts}",
-                "platform": "news",
-                "text":     f"'{keyword}' konusunda son gelişmeler: Bu alandaki son gelişmeler yakından takip ediliyor.",
-                "author":   source,
-                "username": source.lower().replace(" ", "_"),
-                "avatar":   f"https://api.dicebear.com/7.x/initials/svg?seed={source}",
-                "timestamp": ts,
-                "url":      "#",
-                "likes":    0,
-                "shares":   random.randint(10, 500),
-                "keyword":  keyword,
-                "media":    f"https://picsum.photos/seed/news{keyword}{i}/600/300",
-                "source":   source,
-                "is_demo":  True,
-            })
-    return posts

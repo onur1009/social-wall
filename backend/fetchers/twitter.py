@@ -70,6 +70,8 @@ def _format_tweet(post_dict: dict, keyword: str) -> Optional[Dict]:
 
     try:
         text = post_dict.get("text", post_dict.get("full_text", ""))
+        if keyword.lower() not in str(text).lower():
+            return None
         author_name = post_dict.get("author_name", post_dict.get("name", ""))
         username = post_dict.get(
             "author_username",
@@ -122,39 +124,6 @@ def _format_tweet(post_dict: dict, keyword: str) -> Optional[Dict]:
         return None
 
 
-def _generate_demo_tweets(keywords: List[str]) -> List[Dict]:
-    """Demo tweet verisi üretir (API erişilemediğinde)."""
-    authors = [
-        ("Ahmet Yılmaz", "ahmetyilmaz_tr"),
-        ("Zeynep Kaya", "zeynepkaya"),
-        ("Burak Öztürk", "burakozturk"),
-        ("Selin Çelik", "selincelik"),
-        ("Mert Aydın", "mertaydin"),
-    ]
-    posts = []
-    for keyword in keywords[:3]:
-        for i, (name, uname) in enumerate(authors[:3]):
-            ts = int(time.time()) - random.randint(300, 7200)
-            posts.append({
-                "id": f"tw_demo_{keyword}_{i}_{ts}",
-                "platform": "twitter",
-                "text": (
-                    f"#{keyword} hakkında ilginç gelişmeler yaşanıyor! "
-                    f"Bu konuyu yakından takip etmek gerekiyor. "
-                    f"Sizce bu durum nasıl gelişecek? #trend #teknoloji"
-                ),
-                "author": name,
-                "username": f"@{uname}",
-                "avatar": f"https://api.dicebear.com/7.x/avataaars/svg?seed={uname}",
-                "timestamp": ts,
-                "url": f"https://twitter.com/{uname}",
-                "likes": random.randint(10, 500),
-                "shares": random.randint(5, 100),
-                "keyword": keyword,
-                "media": None,
-                "is_demo": True,
-            })
-    return posts
 
 
 async def fetch_twitter(keywords: List[str], api_key: str = "") -> List[Dict]:
@@ -181,9 +150,7 @@ async def fetch_twitter(keywords: List[str], api_key: str = "") -> List[Dict]:
             print(f"[Twitter] xpoz hata: {e} — demo'ya geçiliyor")
             all_posts.append(_format_tweet({"error": f"fetch_twitter_err: {e}", "keyword": "fetch_twitter"}, "_error"))
 
-    if not all_posts:
-        print("[Twitter] Demo data kullanılıyor")
-        all_posts = _generate_demo_tweets(keywords)
+
 
     print(f"[Twitter] Toplam {len(all_posts)} tweet")
     return all_posts

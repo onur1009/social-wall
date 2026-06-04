@@ -117,12 +117,9 @@ async def _fetch_rss_feed(url: str, source_name: str, keywords: List[str],
                 }
                 if matched:
                     matched_posts.append(post)
-                else:
-                    fallback_posts.append(post)
             except Exception:
                 pass
-        # Önce keyword eşleşenleri al, yoksa en güncel 3 içeriği göster
-        posts = matched_posts if matched_posts else fallback_posts[:3]
+        posts = matched_posts
     except Exception:
         pass
     return posts
@@ -192,34 +189,6 @@ async def _fetch_twitter_as_linkedin(username: str, account_name: str,
     return posts
 
 
-def _generate_demo_linkedin(keywords: List[str]) -> List[Dict]:
-    companies = [
-        ("Microsoft Türkiye",   "microsoft_tr",   "💼"),
-        ("Google Türkiye",      "google_tr",      "🔍"),
-        ("Türk Telekom",        "turktelekom",     "📡"),
-        ("Arçelik",             "arcelik",         "🏭"),
-        ("Getir",               "getir",           "🛵"),
-    ]
-    posts = []
-    for keyword in keywords[:3]:
-        for i, (name, slug, icon) in enumerate(companies[:3]):
-            ts = int(time.time()) - random.randint(7200, 172800)
-            posts.append({
-                "id":       f"li_demo_{keyword}_{i}_{ts}",
-                "platform": "linkedin",
-                "text":     f"{icon} {name} olarak {keyword} alanındaki son gelişmeleri yakından takip ediyoruz. Bu önemli konuda ekibimizle çalışmalar yürütüyoruz. #LinkedInTR #{keyword.replace(' ', '')}",
-                "author":   name,
-                "username": f"linkedin.com/company/{slug}",
-                "avatar":   f"https://www.google.com/s2/favicons?domain=linkedin.com&sz=64",
-                "timestamp": ts,
-                "url":      f"https://linkedin.com/company/{slug}",
-                "likes":    random.randint(50, 3000),
-                "shares":   random.randint(10, 300),
-                "keyword":  keyword,
-                "media":    None,
-                "is_demo":  True,
-            })
-    return posts
 
 
 async def fetch_linkedin(keywords: List[str], api_key: str = "") -> List[Dict]:
@@ -244,10 +213,6 @@ async def fetch_linkedin(keywords: List[str], api_key: str = "") -> List[Dict]:
             if post["id"] not in seen_ids:
                 seen_ids.add(post["id"])
                 all_posts.append(post)
-
-    if not all_posts:
-        print("[LinkedIn] Gerçek veri çekilemedi — demo data kullanılıyor")
-        all_posts = _generate_demo_linkedin(keywords)
 
     all_posts.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
     print(f"[LinkedIn] Toplam {len(all_posts)} post")
