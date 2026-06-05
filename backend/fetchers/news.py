@@ -29,8 +29,6 @@ STATIC_RSS_FEEDS = {
     "Habertürk":        "https://www.haberturk.com/rss",
     "A Haber":          "https://www.ahaber.com.tr/rss/anasayfa.xml",
     "TRT Haber":        "https://www.trthaber.com/sondakika.rss",
-    "Fox TV Haber":     "https://www.foxhaber.com/rss.xml",
-    "Show TV Haber":    "https://www.showtv.com.tr/rss.xml",
     # Haber ajansları
     "AA (Anadolu)":     "https://www.aa.com.tr/tr/rss/default?cat=gunun-haberleri",
     "DHA":              "https://www.dha.com.tr/rss",
@@ -44,14 +42,14 @@ STATIC_RSS_FEEDS = {
     # Ekonomi / iş dünyası
     "Bloomberg HT":     "https://www.bloomberght.com/rss",
     "Dünya Gazetesi":   "https://www.dunya.com/rss.xml",
-    "Para Analiz":      "https://www.paraanaliz.com/feed",
-    "Ekonomist":        "https://www.ekonomist.com.tr/feed/",
     # Uluslararası (İngilizce)
     "BBC Türkçe":       "https://feeds.bbci.co.uk/turkish/rss.xml",
     "DW Türkçe":        "https://rss.dw.com/rdf/rss-tur-all",
     "Reuters":          "https://feeds.reuters.com/reuters/topNews",
-    "TechCrunch":       "https://techcrunch.com/feed/",
-    # Keyword bazlı dinamik
+}
+
+# Keyword bazlı dinamik kaynaklar (ayrı dict)
+DYNAMIC_RSS_FEEDS = {
     "Google News TR":   "https://news.google.com/rss/search?q={keyword}+when:30d&hl=tr&gl=TR&ceid=TR:tr",
     "Google News EN":   "https://news.google.com/rss/search?q={keyword}+when:30d&hl=en&gl=TR&ceid=TR:en",
 }
@@ -60,6 +58,7 @@ NEWSAPI_URL = "https://newsapi.org/v2/everything"
 
 
 def _parse_rss_date(date_str: str) -> int:
+    """RSS tarih string'ini Unix timestamp'e çevirir."""
     if not date_str:
         return int(time.time())
     try:
@@ -76,6 +75,7 @@ def _parse_rss_date(date_str: str) -> int:
 
 
 def _clean_html(text: str) -> str:
+    """HTML tag'larını temizler."""
     if not text:
         return ""
     text = re.sub(r'<[^>]+>', '', str(text))
@@ -83,7 +83,34 @@ def _clean_html(text: str) -> str:
     return text[:400]
 
 
+async def _fetch_static_rss(url: str, source_name: str, keywords: List[str], client: httpx.AsyncClient) -> List[Dict]:
+    """Statik bir RSS kaynağından çek, keyword ile filtrele."""
+    posts = []
+    try:
+        resp = await client.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True)
+        if resp.status_code != 200:
+            return posts
+        feed = feedparser.parse(resp.text)
+        for entry in feed.entries[:30]:
+            try:
+                title   = _clean_html(getattr(entry, "title", ""))
+                summary = _clean_html(getattr(entry, "summary", ""))
+                full    = f"{title} {summary}".lower()
+                # En az bir keyword eşleşmeli
+                matched_kw = next((kw for kw in keywords if kw.lower() in full), None)
+                if matched_kw is None and keywords:
+                    continue  # keyword yoksa bu haberi alma
+                kw = matched_kw or keywords[0]
+                posts.append(_format_rss_entry(entry, source_name, kw))
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"[News] Statik RSS hatası ({source_name}): {e}")
+    return posts
+
+
 def _format_rss_entry(entry, source_name: str, keyword: str, domain: str = "") -> Dict:
+    """Tek bir RSS entry'sini standart post formatına çevirir."""
     title   = _clean_html(getattr(entry, "title", ""))
     summary = _clean_html(getattr(entry, "summary", getattr(entry, "description", "")))
     text    = f"{title}\n\n{summary}".strip() if summary else title
@@ -104,18 +131,21 @@ def _format_rss_entry(entry, source_name: str, keyword: str, domain: str = "") -
 
     # Extract original source from Google News <source> tag
     if hasattr(entry, "source"):
-        if isinstance(entry.source, dict):
-            real_source = entry.source.get("title", real_source)
-            s_url = entry.source.get("href", entry.source.get("url", ""))
-        else:
-            real_source = getattr(entry.source, "title", real_source)
-            s_url = getattr(entry.source, "href", getattr(entry.source, "url", ""))
-            
-        if s_url and s_url.startswith("http"):
-            try:
-                real_domain = s_url.split("/")[2]
-            except Exception:
-                pass
+        try:
+            if isinstance(entry.source, dict):
+                real_source = entry.source.get("title", real_source)
+                s_url = entry.source.get("href", entry.source.get("url", ""))
+            else:
+                real_source = getattr(entry.source, "title", real_source)
+                s_url = getattr(entry.source, "href", getattr(entry.source, "url", ""))
+
+            if s_url and s_url.startswith("http"):
+                try:
+                    real_domain = s_url.split("/")[2]
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
     # Favicon domain
     favicon_domain = real_domain or "news.google.com"
@@ -148,35 +178,29 @@ def _format_rss_entry(entry, source_name: str, keyword: str, domain: str = "") -
 
 
 async def _fetch_rss(url: str, source_name: str, keyword: str, client: httpx.AsyncClient) -> List[Dict]:
+    """Dinamik (keyword bazlı) RSS kaynağından çeker."""
     posts = []
     try:
-        resp = await client.get(url, timeout=8, headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True)
+        resp = await client.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True)
         if resp.status_code == 200:
             feed = feedparser.parse(resp.text)
-            for entry in feed.entries[:6]:
+            for entry in feed.entries[:8]:
                 try:
                     posts.append(_format_rss_entry(entry, source_name, keyword))
                 except Exception:
                     pass
     except Exception as e:
-        pass  # sessizce atla
+        print(f"[News] RSS hatası ({source_name}): {e}")
     return posts
 
 
-def _matches_keyword(text: str, keyword: str) -> bool:
-    """Haberde keyword geçiyor mu kontrol et (büyük/küçük harf duyarsız)."""
-    text_lower    = text.lower()
-    keyword_lower = keyword.lower()
-    # Tam kelime eşleşimi veya içerme
-    return keyword_lower in text_lower
-
-
 async def _fetch_newsapi(keyword: str, api_key: str, client: httpx.AsyncClient) -> List[Dict]:
+    """NewsAPI'den çeker (opsiyonel, key varsa)."""
     if not api_key or api_key in ("", "your_newsapi_key_here"):
         return []
     posts = []
     try:
-        resp = await client.get(NEWSAPI_URL, timeout=8, params={
+        resp = await client.get(NEWSAPI_URL, timeout=10, params={
             "q": keyword,
             "apiKey": api_key,
             "sortBy": "publishedAt",
@@ -216,87 +240,62 @@ async def _fetch_newsapi(keyword: str, api_key: str, client: httpx.AsyncClient) 
 
 
 async def fetch_news(keywords: List[str], api_key: str = "", custom_rss: List[str] = None) -> List[Dict]:
-    if custom_rss is None:
-        custom_rss = []
     """
     Ana haber fetch fonksiyonu.
     1) Keyword bazlı: Google News TR + EN RSS
     2) Statik Türk kaynakları: Hürriyet, Sabah, CNN Türk, NTV, AA, vb.
        — keyword ile filtrele
     3) NewsAPI (key varsa)
+    4) Özel (Custom) RSS kaynakları
     """
+    if custom_rss is None:
+        custom_rss = []
+
     all_posts: List[Dict] = []
     seen_ids = set()
+    static_source_count = len(STATIC_RSS_FEEDS)
 
-    async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
         tasks = []
 
         # ── 1) Keyword bazlı Google News RSS ──────────────────────
         for keyword in keywords[:5]:
-            for feed_name in ("Google News TR", "Google News EN"):
-                url = STATIC_RSS_FEEDS[feed_name].format(keyword=keyword.replace(" ", "+"))
-                tasks.append(_fetch_rss(url, feed_name.replace(" {keyword}", ""), keyword, client))
+            for feed_name, feed_url in DYNAMIC_RSS_FEEDS.items():
+                url = feed_url.format(keyword=keyword.replace(" ", "+"))
+                tasks.append(_fetch_rss(url, feed_name, keyword, client))
 
         # ── 2) Statik Türk kaynaklarından keyword filtreli haberler ──
-        static_sources = {k: v for k, v in STATIC_RSS_FEEDS.items()
-                          if "{keyword}" not in v}
-
-        for source_name, url in static_sources.items():
-            # Her keyword için ayrı task değil — kaynağı bir kez çek, keyword filtrele
+        for source_name, url in STATIC_RSS_FEEDS.items():
             tasks.append(_fetch_static_rss(url, source_name, keywords[:5], client))
 
         # ── 3) NewsAPI ──────────────────────────────────────────────
         for keyword in keywords[:3]:
             tasks.append(_fetch_newsapi(keyword, api_key, client))
-            
+
         # ── 4) Özel (Custom) RSS Kaynakları ─────────────────────────
         for rss_url in custom_rss:
             try:
                 custom_name = rss_url.split("/")[2] if rss_url.startswith("http") else "Özel RSS"
-            except:
+            except Exception:
                 custom_name = "Özel RSS"
             tasks.append(_fetch_static_rss(rss_url, custom_name, keywords[:5], client))
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
     for result in results:
+        if isinstance(result, Exception):
+            print(f"[News] Task hatası: {result}")
+            continue
         if not isinstance(result, list):
             continue
         for post in result:
-            if post.get("id") not in seen_ids:
-                seen_ids.add(post["id"])
+            pid = post.get("id")
+            if pid and pid not in seen_ids:
+                seen_ids.add(pid)
                 all_posts.append(post)
 
     # Zaman damgasına göre sırala
     all_posts.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
 
-    print(f"[News] Toplam {len(all_posts)} haber ({len(static_sources)} statik kaynak + Google News + NewsAPI)")
+    print(f"[News] Toplam {len(all_posts)} haber ({static_source_count} statik kaynak + Google News + NewsAPI)")
     return all_posts[:80]  # max 80
-
-
-async def _fetch_static_rss(url: str, source_name: str, keywords: List[str], client: httpx.AsyncClient) -> List[Dict]:
-    """Statik bir RSS kaynağından çek, keyword ile filtrele."""
-    posts = []
-    try:
-        resp = await client.get(url, timeout=8, headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True)
-        if resp.status_code != 200:
-            return posts
-        feed = feedparser.parse(resp.text)
-        for entry in feed.entries[:30]:
-            try:
-                title   = _clean_html(getattr(entry, "title", ""))
-                summary = _clean_html(getattr(entry, "summary", ""))
-                full    = f"{title} {summary}".lower()
-                # En az bir keyword eşleşmeli
-                matched_kw = next((kw for kw in keywords if kw.lower() in full), None)
-                if matched_kw is None and keywords:
-                    continue  # keyword yoksa bu haberi alma
-                kw = matched_kw or keywords[0]
-                posts.append(_format_rss_entry(entry, source_name, kw))
-            except Exception:
-                pass
-    except Exception:
-        pass
-    return posts
-
-

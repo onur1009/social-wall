@@ -112,9 +112,12 @@ async def get_posts(
     all_posts = []
     for name, result in zip(task_names, results):
         if isinstance(result, Exception):
-            print(f"[{name}] Fetch hatası: {result}")
+            import traceback
+            print(f"[{name}] ❌ Fetch hatası: {result}")
+            traceback.print_exception(type(result), result, result.__traceback__)
             continue
         if isinstance(result, list):
+            print(f"[{name}] ✅ {len(result)} post çekildi")
             all_posts.extend(result)
 
     # Zaman damgasına göre sırala (yeniden eskiye)
