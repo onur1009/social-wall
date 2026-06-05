@@ -12,7 +12,13 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 from dotenv import load_dotenv
+
+try:
+    from deep_translator import GoogleTranslator
+except ImportError:
+    GoogleTranslator = None
 
 load_dotenv()
 
@@ -134,6 +140,26 @@ async def health():
         "platforms": list(PLATFORM_FETCHERS.keys()),
     }
 
+
+class TranslateRequest(BaseModel):
+    text: str
+
+@app.post("/api/translate")
+async def translate_text(req: TranslateRequest):
+    if not req.text.strip():
+        return {"translated_text": ""}
+    if not GoogleTranslator:
+        return {"error": "Translator unavailable", "translated_text": req.text}
+    
+    try:
+        # Uzun metinler engellenebilir (Google Translate sınırı genelde 5000 karakter)
+        text_to_translate = req.text[:4900]
+        translated = await asyncio.to_thread(
+            lambda: GoogleTranslator(source='auto', target='tr').translate(text_to_translate)
+        )
+        return {"translated_text": translated}
+    except Exception as e:
+        return {"error": str(e), "translated_text": req.text}
 
 if __name__ == "__main__":
     import sys

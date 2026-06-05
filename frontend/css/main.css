@@ -307,3 +307,22 @@ body::before {
 .gap-3 { gap: 12px; }
 .gap-4 { gap: 16px; }
 .w-full { width: 100%; }
+
+/* === Translate Button === */
+.card-translate-btn {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.card-translate-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: var(--text-primary);
+}

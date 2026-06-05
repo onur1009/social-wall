@@ -6,3 +6,4 @@ python-dotenv==1.0.1
 beautifulsoup4==4.12.3
 mcp==1.27.1
 xpoz==0.6.5
+deep-translator==1.11.4

@@ -303,6 +303,7 @@ function createCard(post, index) {
           ${subtitle}
           <span class="card-keyword">${esc(post.keyword || '')}</span>
           <span class="card-time">${timeAgo(post.timestamp)}</span>
+          <button class="card-translate-btn" onclick="translatePost(this)">🌐 Çevir</button>
         </div>
       </div>
     </div>
@@ -445,3 +446,42 @@ function heartSvg() {
 function shareSvg() {
   return `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>`;
 }
+
+/* ── Translation ────────────────────────────────── */
+window.translatePost = async function(btn) {
+  if (btn.classList.contains('translating')) return;
+  
+  const card = btn.closest('.post-card');
+  const textEl = card.querySelector('.card-text');
+  // Grab raw text without HTML tags to send to translator
+  const originalText = textEl.innerText || textEl.textContent;
+  
+  if (!originalText.trim()) return;
+
+  btn.classList.add('translating');
+  const oldHtml = btn.innerHTML;
+  btn.innerHTML = '⏳ <span style="opacity:0.7">Çevriliyor...</span>';
+  
+  try {
+    const res = await fetch(`${API_BASE}/api/translate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: originalText })
+    });
+    const data = await res.json();
+    if (data.translated_text) {
+      textEl.innerHTML = formatText(data.translated_text);
+      btn.style.display = 'none'; // hide button after translation
+      showToast('✅ Metin çevrildi', 'success');
+    } else {
+      throw new Error(data.error || 'Çeviri başarısız');
+    }
+  } catch (err) {
+    console.error('[Translation]', err);
+    btn.innerHTML = '❌ Hata';
+    setTimeout(() => {
+      btn.innerHTML = oldHtml;
+      btn.classList.remove('translating');
+    }, 2000);
+  }
+};
