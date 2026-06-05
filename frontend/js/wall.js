@@ -303,7 +303,7 @@ function createCard(post, index) {
           ${subtitle}
           <span class="card-keyword">${esc(post.keyword || '')}</span>
           <span class="card-time">${timeAgo(post.timestamp)}</span>
-          <button class="card-translate-btn" onclick="translatePost(this)">🌐 Çevir</button>
+          <button class="card-translate-btn" onclick="translatePost(event, this)">🌐 Çevir</button>
         </div>
       </div>
     </div>
@@ -448,7 +448,8 @@ function shareSvg() {
 }
 
 /* ── Translation ────────────────────────────────── */
-window.translatePost = async function(btn) {
+window.translatePost = async function(e, btn) {
+  e.stopPropagation(); // prevent card click (which opens new tab)
   if (btn.classList.contains('translating')) return;
   
   const card = btn.closest('.post-card');
