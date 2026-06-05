@@ -13,6 +13,7 @@ const REFRESH_INTERVAL = 60; // seconds
 const urlParams  = new URLSearchParams(window.location.search);
 const KEYWORDS   = urlParams.get('keywords')  || 'teknoloji';
 const PLATFORMS  = urlParams.get('platforms') || 'twitter,news,facebook,linkedin';
+const CUSTOM_RSS = urlParams.get('custom_rss') || '';
 
 /* ── State ──────────────────────────────────────── */
 let allPosts         = [];
@@ -110,7 +111,10 @@ async function fetchAndRender(initial = false) {
   if (initial) showLoading(true);
 
   try {
-    const url = `${API_BASE}/api/posts?keywords=${encodeURIComponent(KEYWORDS)}&platforms=${encodeURIComponent(PLATFORMS)}&limit=80`;
+    let url = `${API_BASE}/api/posts?keywords=${encodeURIComponent(KEYWORDS)}&platforms=${encodeURIComponent(PLATFORMS)}&limit=80`;
+    if (CUSTOM_RSS) {
+      url += `&custom_rss=${encodeURIComponent(CUSTOM_RSS)}`;
+    }
     const res  = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();

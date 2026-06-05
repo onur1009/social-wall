@@ -99,8 +99,26 @@ def _format_rss_entry(entry, source_name: str, keyword: str, domain: str = "") -
         except Exception:
             domain = "news"
 
+    real_source = source_name
+    real_domain = domain
+
+    # Extract original source from Google News <source> tag
+    if hasattr(entry, "source"):
+        if isinstance(entry.source, dict):
+            real_source = entry.source.get("title", real_source)
+            s_url = entry.source.get("href", entry.source.get("url", ""))
+        else:
+            real_source = getattr(entry.source, "title", real_source)
+            s_url = getattr(entry.source, "href", getattr(entry.source, "url", ""))
+            
+        if s_url and s_url.startswith("http"):
+            try:
+                real_domain = s_url.split("/")[2]
+            except Exception:
+                pass
+
     # Favicon domain
-    favicon_domain = domain or "news.google.com"
+    favicon_domain = real_domain or "news.google.com"
 
     # Media
     media = None
@@ -115,8 +133,8 @@ def _format_rss_entry(entry, source_name: str, keyword: str, domain: str = "") -
         "id":       f"news_{abs(hash(str(entry_id))) % (10**12)}",
         "platform": "news",
         "text":     text[:500],
-        "author":   source_name,
-        "username": source_name.lower().replace(" ", "_"),
+        "author":   real_source,
+        "username": real_source.lower().replace(" ", "_"),
         "avatar":   f"https://www.google.com/s2/favicons?domain={favicon_domain}&sz=64",
         "timestamp": ts,
         "url":      link,
@@ -124,7 +142,7 @@ def _format_rss_entry(entry, source_name: str, keyword: str, domain: str = "") -
         "shares":   0,
         "keyword":  keyword,
         "media":    media,
-        "source":   source_name,
+        "source":   real_source,
         "is_demo":  False,
     }
 
@@ -197,7 +215,9 @@ async def _fetch_newsapi(keyword: str, api_key: str, client: httpx.AsyncClient) 
     return posts
 
 
-async def fetch_news(keywords: List[str], api_key: str = "") -> List[Dict]:
+async def fetch_news(keywords: List[str], api_key: str = "", custom_rss: List[str] = None) -> List[Dict]:
+    if custom_rss is None:
+        custom_rss = []
     """
     Ana haber fetch fonksiyonu.
     1) Keyword bazlı: Google News TR + EN RSS
@@ -228,6 +248,14 @@ async def fetch_news(keywords: List[str], api_key: str = "") -> List[Dict]:
         # ── 3) NewsAPI ──────────────────────────────────────────────
         for keyword in keywords[:3]:
             tasks.append(_fetch_newsapi(keyword, api_key, client))
+            
+        # ── 4) Özel (Custom) RSS Kaynakları ─────────────────────────
+        for rss_url in custom_rss:
+            try:
+                custom_name = rss_url.split("/")[2] if rss_url.startswith("http") else "Özel RSS"
+            except:
+                custom_name = "Özel RSS"
+            tasks.append(_fetch_static_rss(rss_url, custom_name, keywords[:5], client))
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 

@@ -423,6 +423,39 @@
         </div>
       </div>
 
+      <!-- Custom RSS Input -->
+      <div class="animate-in" style="margin-top:20px;">
+        <p class="section-label">🔗 Özel RSS Kaynakları</p>
+        <div class="keyword-input-row">
+          <div class="keyword-input-wrap">
+            <span class="input-icon" style="top:50%;left:14px;transform:translateY(-50%);">🌐</span>
+            <input
+              id="rss-input"
+              class="input"
+              type="url"
+              placeholder="https://orneksite.com/feed (İsteğe bağlı)"
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </div>
+          <button id="add-rss-btn" class="btn btn-primary">+ Ekle</button>
+        </div>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:8px;">
+          Kendi haber kaynaklarınızın RSS linklerini ekleyebilirsiniz (Max 5)
+        </p>
+      </div>
+
+      <!-- RSS Tag Container -->
+      <div class="tag-section animate-in">
+        <div class="tag-section-header">
+          <p class="section-label" style="margin:0;">Eklenen RSS Kaynakları</p>
+          <span style="font-size:12px;color:var(--text-muted);">
+            <strong id="rss-count" style="color:var(--text-primary);">0</strong> / 5
+          </span>
+        </div>
+        <div id="rss-container"></div>
+      </div>
+
     </div><!-- /left -->
 
     <!-- Right: Launch Panel -->

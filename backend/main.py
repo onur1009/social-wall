@@ -47,10 +47,10 @@ XPOZ_API_KEY = os.getenv("XPOZ_API_KEY", "")
 NEWS_API_KEY  = os.getenv("NEWS_API_KEY", "")
 
 PLATFORM_FETCHERS = {
-    "twitter":  lambda kw: fetch_twitter(kw, XPOZ_API_KEY),
-    "news":     lambda kw: fetch_news(kw, NEWS_API_KEY),
-    "facebook": lambda kw: fetch_facebook(kw, XPOZ_API_KEY),
-    "linkedin": lambda kw: fetch_linkedin(kw, XPOZ_API_KEY),
+    "twitter":  lambda kw, crss: fetch_twitter(kw, XPOZ_API_KEY),
+    "news":     lambda kw, crss: fetch_news(kw, NEWS_API_KEY, crss),
+    "facebook": lambda kw, crss: fetch_facebook(kw, XPOZ_API_KEY),
+    "linkedin": lambda kw, crss: fetch_linkedin(kw, XPOZ_API_KEY),
 }
 
 DEFAULT_PLATFORMS = "twitter,news,facebook,linkedin"
@@ -79,12 +79,14 @@ async def wall_page():
 async def get_posts(
     keywords:  str = Query(..., description="Comma-separated keywords"),
     platforms: str = Query(DEFAULT_PLATFORMS, description="Comma-separated platforms"),
+    custom_rss: Optional[str] = Query(None, description="Comma-separated custom RSS URLs"),
     limit:     int = Query(80, ge=1, le=150),
 ):
     keyword_list  = [k.strip() for k in keywords.split(",")  if k.strip()]
     platform_list = [p.strip().lower() for p in platforms.split(",") if p.strip()]
+    custom_rss_list = [r.strip() for r in custom_rss.split(",")] if custom_rss else []
 
-    cache_key = f"{','.join(sorted(keyword_list))}|{','.join(sorted(platform_list))}"
+    cache_key = f"{','.join(sorted(keyword_list))}|{','.join(sorted(platform_list))}|{','.join(sorted(custom_rss_list))}"
     cached = cache.get(cache_key)
     if cached:
         return JSONResponse(content={
@@ -96,7 +98,7 @@ async def get_posts(
     task_names = []
     for plat in platform_list:
         if plat in PLATFORM_FETCHERS:
-            tasks.append(PLATFORM_FETCHERS[plat](keyword_list))
+            tasks.append(PLATFORM_FETCHERS[plat](keyword_list, custom_rss_list))
             task_names.append(plat)
 
     results = await asyncio.gather(*tasks, return_exceptions=True)

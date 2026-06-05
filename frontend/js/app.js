@@ -11,6 +11,7 @@ const API_BASE = (window.location.hostname === 'localhost' || window.location.ho
 
 const state = {
   keywords: [],
+  customRss: [],
   platforms: {
     twitter:  true,
     facebook: true,
@@ -30,10 +31,16 @@ const statusDot      = document.getElementById('api-status-dot');
 const statusText     = document.getElementById('api-status-text');
 const platformItems  = document.querySelectorAll('.platform-item');
 
+const rssInput       = document.getElementById('rss-input');
+const addRssBtn      = document.getElementById('add-rss-btn');
+const rssContainer   = document.getElementById('rss-container');
+const rssCount       = document.getElementById('rss-count');
+
 /* ── Init ─────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
   loadFromStorage();
   renderTags();
+  renderRssTags();
   updatePlatformToggles();
   checkApiHealth();
   setInterval(checkApiHealth, 15000);
@@ -47,6 +54,19 @@ function bindEvents() {
   keywordInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') handleAddKeyword();
   });
+
+  if (addRssBtn && rssInput) {
+    addRssBtn.addEventListener('click', handleAddRss);
+    rssInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') handleAddRss();
+    });
+    rssInput.addEventListener('focus', () => {
+      rssInput.parentElement.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.15)';
+    });
+    rssInput.addEventListener('blur', () => {
+      rssInput.parentElement.style.boxShadow = '';
+    });
+  }
 
   launchBtn.addEventListener('click', launchWall);
   if (previewBtn) previewBtn.addEventListener('click', launchWall);
@@ -140,6 +160,70 @@ function renderTags() {
   updateLaunchButton();
 }
 
+/* ── Custom RSS Management ─────────────────────── */
+function handleAddRss() {
+  const raw = rssInput.value.trim();
+  if (!raw) { shake(rssInput); return; }
+  
+  if (!raw.startsWith('http')) {
+    showNotification('Geçerli bir URL girmelisiniz (http:// veya https://)', 'warning');
+    shake(rssInput);
+    return;
+  }
+
+  if (!state.customRss.includes(raw) && state.customRss.length < 5) {
+    state.customRss.push(raw);
+    rssInput.value = '';
+    renderRssTags();
+    saveToStorage();
+    flashSuccess(addRssBtn);
+  } else {
+    shake(rssInput);
+  }
+}
+
+function removeRss(url) {
+  state.customRss = state.customRss.filter(r => r !== url);
+  renderRssTags();
+  saveToStorage();
+}
+
+function renderRssTags() {
+  if (!rssContainer) return;
+  rssContainer.innerHTML = '';
+
+  if (state.customRss.length === 0) {
+    rssContainer.innerHTML = `
+      <span style="color:var(--text-muted);font-size:13px;padding:4px 0;">
+        Özel RSS linki eklenmedi
+      </span>`;
+    if(rssCount) rssCount.textContent = '0';
+    return;
+  }
+
+  state.customRss.forEach((url, i) => {
+    const tag = document.createElement('div');
+    tag.className = 'tag';
+    tag.style.animationDelay = `${i * 40}ms`;
+    const displayUrl = url.replace(/^https?:\/\//, '').substring(0, 30) + '...';
+    tag.innerHTML = `
+      <span>🔗 ${displayUrl}</span>
+      <button class="tag-remove" onclick="removeRss('${url}')" title="Kaldır">✕</button>
+    `;
+    rssContainer.appendChild(tag);
+
+    tag.style.opacity = '0';
+    tag.style.transform = 'scale(0.8)';
+    requestAnimationFrame(() => {
+      tag.style.transition = 'all 0.25s cubic-bezier(0.34,1.56,0.64,1)';
+      tag.style.opacity = '1';
+      tag.style.transform = 'scale(1)';
+    });
+  });
+
+  if(rssCount) rssCount.textContent = state.customRss.length;
+}
+
 /* ── Platform Toggles ────────────────────────── */
 function updatePlatformToggles() {
   document.querySelectorAll('.platform-toggle-input').forEach(toggle => {
@@ -177,6 +261,9 @@ function launchWall() {
     keywords: state.keywords.join(','),
     platforms: activePlatforms
   });
+  if (state.customRss.length > 0) {
+    params.append('custom_rss', state.customRss.join(','));
+  }
 
   window.open(`wall.html?${params.toString()}`, '_blank');
 }
@@ -207,6 +294,7 @@ async function checkApiHealth() {
 function saveToStorage() {
   localStorage.setItem('sw_keywords', JSON.stringify(state.keywords));
   localStorage.setItem('sw_platforms', JSON.stringify(state.platforms));
+  localStorage.setItem('sw_custom_rss', JSON.stringify(state.customRss));
 }
 
 function loadFromStorage() {
@@ -215,6 +303,8 @@ function loadFromStorage() {
     if (kw) state.keywords = JSON.parse(kw);
     const pl = localStorage.getItem('sw_platforms');
     if (pl) state.platforms = { ...state.platforms, ...JSON.parse(pl) };
+    const cr = localStorage.getItem('sw_custom_rss');
+    if (cr) state.customRss = JSON.parse(cr);
   } catch {}
 }
 
@@ -286,3 +376,4 @@ function animateOnLoad() {
 
 // Global (for onclick in HTML)
 window.removeKeyword = removeKeyword;
+window.removeRss = removeRss;
