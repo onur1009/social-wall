@@ -83,12 +83,22 @@ def _format_tweet(post_dict: dict, keyword: str) -> Optional[Dict]:
         created = post_dict.get("created_at", "")
         if created:
             try:
-                from datetime import datetime
-                if isinstance(created, str):
-                    dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
-                    ts = int(dt.timestamp())
-                elif isinstance(created, (int, float)):
+                if isinstance(created, (int, float)):
                     ts = int(created)
+                elif isinstance(created, str):
+                    import email.utils
+                    from datetime import datetime
+                    try:
+                        # Twitter's classic string "Wed Oct 10 20:19:24 +0000 2018"
+                        parsed_tuple = email.utils.parsedate_tz(created)
+                        if parsed_tuple:
+                            ts = email.utils.mktime_tz(parsed_tuple)
+                        else:
+                            # Try ISO format
+                            dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
+                            ts = int(dt.timestamp())
+                    except Exception:
+                        pass
             except Exception:
                 pass
 
