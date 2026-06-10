@@ -23,7 +23,7 @@ except ImportError:
 load_dotenv()
 
 from fetchers.twitter   import fetch_twitter
-from fetchers.news      import fetch_news
+from fetchers.news      import fetch_news, get_news_sources
 from fetchers.facebook  import fetch_facebook
 from fetchers.linkedin  import fetch_linkedin
 from cache import Cache
@@ -61,6 +61,45 @@ PLATFORM_FETCHERS = {
 
 DEFAULT_PLATFORMS = "twitter,news,facebook,linkedin"
 
+ACTIVE_QUERIES = {}
+
+async def _background_refresher():
+    """Arkaplanda son 5 dk içinde aktif olan sorguları her 25sn'de bir günceller."""
+    while True:
+        try:
+            now = time.time()
+            # 5 dakikadan eski sorguları temizle
+            expired = [k for k, v in list(ACTIVE_QUERIES.items()) if now - v["last_requested"] > 300]
+            for k in expired:
+                del ACTIVE_QUERIES[k]
+
+            for cache_key, data in list(ACTIVE_QUERIES.items()):
+                if now - data["last_fetched"] > 25:
+                    tasks = []
+                    task_names = []
+                    for plat in data["platforms"]:
+                        if plat in PLATFORM_FETCHERS:
+                            tasks.append(PLATFORM_FETCHERS[plat](data["keywords"], data["custom_rss"]))
+                            task_names.append(plat)
+
+                    results = await asyncio.gather(*tasks, return_exceptions=True)
+                    all_posts = []
+                    for name, res in zip(task_names, results):
+                        if isinstance(res, list):
+                            all_posts.extend(res)
+
+                    all_posts.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
+                    cache.set(cache_key, all_posts[:data["limit"]])
+                    data["last_fetched"] = time.time()
+
+        except Exception as e:
+            print(f"[Background Refresh] Error: {e}")
+        
+        await asyncio.sleep(5)
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(_background_refresher())
 
 @app.get("/")
 async def root():
@@ -81,6 +120,12 @@ async def wall_page():
     return {"error": "wall.html bulunamadı", "frontend_dir": str(FRONTEND_DIR), "exists": FRONTEND_DIR.exists()}
 
 
+@app.get("/api/sources")
+async def api_sources():
+    """Kullanılabilir haber kaynaklarının listesini döner."""
+    return {"sources": get_news_sources()}
+
+
 @app.get("/api/posts")
 async def get_posts(
     keywords:  str = Query(..., description="Comma-separated keywords"),
@@ -93,6 +138,20 @@ async def get_posts(
     custom_rss_list = [r.strip() for r in custom_rss.split(",")] if custom_rss else []
 
     cache_key = f"{','.join(sorted(keyword_list))}|{','.join(sorted(platform_list))}|{','.join(sorted(custom_rss_list))}"
+    
+    # Arka plan yenileyiciye kaydet
+    if cache_key not in ACTIVE_QUERIES:
+        ACTIVE_QUERIES[cache_key] = {
+            "keywords": keyword_list,
+            "platforms": platform_list,
+            "custom_rss": custom_rss_list,
+            "limit": limit,
+            "last_requested": time.time(),
+            "last_fetched": 0
+        }
+    else:
+        ACTIVE_QUERIES[cache_key]["last_requested"] = time.time()
+
     cached = cache.get(cache_key)
     if cached:
         return JSONResponse(content={
@@ -125,6 +184,8 @@ async def get_posts(
     all_posts = all_posts[:limit]
 
     cache.set(cache_key, all_posts)
+    if cache_key in ACTIVE_QUERIES:
+        ACTIVE_QUERIES[cache_key]["last_fetched"] = time.time()
 
     return JSONResponse(content={
         "posts":     all_posts,

@@ -7,7 +7,7 @@
 const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
   ? 'http://127.0.0.1:8765'
   : window.location.origin;
-const REFRESH_INTERVAL = 60; // seconds
+const REFRESH_INTERVAL = 30; // seconds
 
 /* ── URL Params ─────────────────────────────────── */
 const urlParams  = new URLSearchParams(window.location.search);
@@ -144,6 +144,12 @@ async function fetchAndRender(initial = false) {
     updatePostCount();
     const src = data.cached ? '(önbellekten)' : '';
     showToast(`✅ ${freshPosts.length} gönderi ${src}`, 'success');
+
+    const lastUpdateEl = document.getElementById('last-update');
+    if (lastUpdateEl) {
+      const now = new Date();
+      lastUpdateEl.textContent = `Son: ${now.toLocaleTimeString('tr-TR')}`;
+    }
 
   } catch (err) {
     console.error('[Wall] Fetch error:', err);
@@ -362,6 +368,13 @@ function updateCountdown() {
   if (nextRefreshEl) nextRefreshEl.textContent = `${secondsLeft}s`;
   const pct = ((REFRESH_INTERVAL - secondsLeft) / REFRESH_INTERVAL) * 100;
   if (refreshBar) refreshBar.style.width = `${pct}%`;
+  
+  const prog = document.getElementById('countdown-ring-prog');
+  if (prog) {
+    const CIRC = 2 * Math.PI * 12; // ~75.4
+    prog.style.strokeDasharray = CIRC;
+    prog.style.strokeDashoffset = CIRC * (1 - secondsLeft / REFRESH_INTERVAL);
+  }
 }
 
 /* ── Loading Overlay ────────────────────────────── */

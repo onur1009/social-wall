@@ -66,6 +66,9 @@
     </div>
 
     <div class="wall-topbar-right">
+      <!-- Last update -->
+      <span class="wall-post-count" id="last-update" style="opacity: 0.7; font-size: 12px; font-weight: 500;">Son: —</span>
+
       <!-- Post count -->
       <span class="wall-post-count" id="post-count">— gönderi</span>
 
@@ -75,7 +78,7 @@
           <circle class="countdown-bg"   cx="15" cy="15" r="12"/>
           <circle class="countdown-prog" id="countdown-ring-prog" cx="15" cy="15" r="12"/>
         </svg>
-        <div class="countdown-num" id="next-refresh">60</div>
+        <div class="countdown-num" id="next-refresh">30</div>
       </div>
 
       <!-- Refresh btn -->
@@ -146,23 +149,7 @@
   }
 })();
 
-/* ── Countdown ring ── */
-(function initRing() {
-  const CIRC = 2 * Math.PI * 12; // r=12 → ~75.4
-  const prog  = document.getElementById('countdown-ring-prog');
-  const numEl = document.getElementById('next-refresh');
-  if (!prog || !numEl) return;
-  const TOTAL = 60;
-  let sec = TOTAL;
-  prog.style.strokeDasharray  = CIRC;
-  prog.style.strokeDashoffset = 0;
-  setInterval(() => {
-    sec--;
-    if (sec < 0) sec = TOTAL;
-    prog.style.strokeDashoffset = CIRC * (1 - sec / TOTAL);
-    numEl.textContent = sec + 's';
-  }, 1000);
-})();
+/* ── Countdown ring (Controlled by wall.js now) ── */
 
 /* ── Fullscreen ── */
 document.getElementById('fullscreen-btn').addEventListener('click', () => {
