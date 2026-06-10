@@ -10,3 +10,5 @@ services:
     envVars:
       - key: XPOZ_API_KEY
         sync: false   # Dashboard'dan girilecek — güvenli
+      - key: NEWS_API_KEY
+        sync: false   # Dashboard'dan girilecek — güvenli
