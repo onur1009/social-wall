@@ -8,6 +8,8 @@ import asyncio
 from concurrent.futures import ProcessPoolExecutor, TimeoutError as FutureTimeoutError
 from typing import List, Dict, Any, Optional
 
+from fetchers.utils import stable_id
+
 
 # ── Subprocess worker (ayrı process'te çalışır, anyio çakışması olmaz) ──────
 def _xpoz_twitter_worker(api_key: str, keywords: List[str]) -> List[Dict]:
@@ -53,13 +55,13 @@ def _format_tweet(post_dict: dict, keyword: str) -> Optional[Dict]:
     """Serileştirilmiş tweet dict'ini kart formatına çevirir."""
     if keyword == "_error":
         return {
-            "id": f"tw_err_{int(time.time())}_{random.randint(100,999)}",
+            "id": stable_id("tw_err", str(time.time()) + str(random.randint(100,999))),
             "platform": "twitter",
             "text": f"DEBUG ERROR: {post_dict.get('error')} (kw: {post_dict.get('keyword')})",
             "author": "System Error",
             "username": "@error",
             "avatar": "",
-            "timestamp": int(time.time()),
+            "timestamp": 0,
             "url": "#",
             "likes": 0,
             "shares": 0,
@@ -79,7 +81,7 @@ def _format_tweet(post_dict: dict, keyword: str) -> Optional[Dict]:
         post_id = str(post_dict.get("id", ""))
 
         # Timestamp
-        ts = int(time.time())
+        ts = 0  # Fallback: 0
         created = post_dict.get("created_at", "")
         if created:
             try:
@@ -113,7 +115,7 @@ def _format_tweet(post_dict: dict, keyword: str) -> Optional[Dict]:
         retweets = int(post_dict.get("retweet_count", 0) or 0)
 
         return {
-            "id": f"tw_{post_id}",
+            "id": stable_id("tw", post_id),
             "platform": "twitter",
             "text": str(text)[:500],
             "author": str(author_name) or str(username),

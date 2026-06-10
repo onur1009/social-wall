@@ -1,70 +1,59 @@
 """
 Facebook fetcher — Google News RSS (site:facebook.com) üzerinden çalışır.
-Geçmişe dönük (30 gün) ve alakalı gönderileri çeker.
 """
-import time
 import asyncio
 import re
 from typing import List, Dict
-from datetime import datetime
 import httpx
 import feedparser
 
+from fetchers.utils import parse_rss_date, clean_html, stable_id
+
 GOOGLE_NEWS_FB_RSS = "https://news.google.com/rss/search?q=site:facebook.com+{keyword}+when:30d&hl=tr&gl=TR&ceid=TR:tr"
-
-
-def _parse_rss_date(date_str: str) -> int:
-    if not date_str:
-        return int(time.time())
-    try:
-        import email.utils
-        return int(email.utils.parsedate_to_datetime(str(date_str)).timestamp())
-    except Exception:
-        pass
-    for fmt in ["%a, %d %b %Y %H:%M:%S %z", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%SZ"]:
-        try:
-            return int(datetime.strptime(str(date_str).strip(), fmt).timestamp())
-        except Exception:
-            pass
-    return int(time.time())
-
-
-def _clean_html(text: str) -> str:
-    if not text:
-        return ""
-    text = re.sub(r'<[^>]+>', '', str(text))
-    text = re.sub(r'\s+', ' ', text).strip()
-    return text[:400]
 
 
 async def _fetch_fb_google_rss(keyword: str, client: httpx.AsyncClient) -> List[Dict]:
     posts = []
     url = GOOGLE_NEWS_FB_RSS.format(keyword=keyword.replace(" ", "+"))
     try:
-        resp = await client.get(url, timeout=8, headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True)
+        resp = await client.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True)
         if resp.status_code == 200:
             feed = feedparser.parse(resp.text)
             for entry in feed.entries[:15]:
                 try:
-                    title   = _clean_html(getattr(entry, "title", ""))
-                    summary = _clean_html(getattr(entry, "summary", getattr(entry, "description", "")))
-                    
-                    # Başlıktaki "- facebook.com" ekini temizle
+                    title   = clean_html(getattr(entry, "title", ""))
+                    summary = clean_html(getattr(entry, "summary", getattr(entry, "description", "")))
                     title = re.sub(r'\s*-\s*facebook\.com\s*$', '', title, flags=re.IGNORECASE)
-                    
+
                     text    = f"{title}\n\n{summary}".strip() if summary else title
                     pub     = getattr(entry, "published", getattr(entry, "updated", ""))
-                    ts      = _parse_rss_date(pub)
+                    ts      = parse_rss_date(pub)
                     link    = getattr(entry, "link", "#")
                     entry_id = getattr(entry, "id", getattr(entry, "guid", link))
 
+                    # Gerçek kaynağı Google News <source> tag'inden çıkar
+                    author = "Facebook Gönderisi"
+                    avatar_domain = "facebook.com"
+                    if hasattr(entry, "source"):
+                        try:
+                            if isinstance(entry.source, dict):
+                                author = entry.source.get("title", author)
+                                s_url = entry.source.get("href", "")
+                            else:
+                                author = getattr(entry.source, "title", author)
+                                s_url = getattr(entry.source, "href", "")
+                            if s_url and s_url.startswith("http"):
+                                avatar_domain = s_url.split("/")[2]
+                        except Exception:
+                            pass
+
                     posts.append({
-                        "id":       f"fb_{abs(hash(str(entry_id))) % (10**12)}",
+                        "id":       stable_id("fb", str(entry_id)),
                         "platform": "facebook",
                         "text":     text[:500],
-                        "author":   "Facebook Gönderisi",
+                        "author":   author,
                         "username": "facebook",
-                        "avatar":   "https://www.google.com/s2/favicons?domain=facebook.com&sz=64",
+                        "avatar":   f"https://www.google.com/s2/favicons?domain={avatar_domain}&sz=64",
                         "timestamp": ts,
                         "url":      link,
                         "likes":    0,
