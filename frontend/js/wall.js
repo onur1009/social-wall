@@ -130,7 +130,9 @@ async function fetchAndRender(initial = false) {
     } else {
       if (newOnes.length > 0) {
         newOnes.forEach(p => postIdsSeen.add(p.id));
-        pendingPosts = [...newOnes, ...allPosts].slice(0, 100);
+        pendingPosts = [...newOnes, ...allPosts]
+          .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+          .slice(0, 100);
         showNewPostsButton(newOnes.length);
         // Update ticker with new news items
         const newNews = newOnes.filter(p => p.platform === 'news');
