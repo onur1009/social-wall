@@ -27,6 +27,7 @@ from fetchers.news      import fetch_news, get_news_sources
 from fetchers.facebook  import fetch_facebook
 from fetchers.linkedin  import fetch_linkedin
 from cache import Cache
+from sentiment import analyze_sentiment_batch
 
 # Frontend static dosyalar
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
@@ -89,7 +90,9 @@ async def _background_refresher():
                             all_posts.extend(res)
 
                     all_posts.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
-                    cache.set(cache_key, all_posts[:data["limit"]])
+                    top_posts = all_posts[:data["limit"]]
+                    await analyze_sentiment_batch(top_posts)
+                    cache.set(cache_key, top_posts)
                     data["last_fetched"] = time.time()
 
         except Exception as e:
@@ -182,6 +185,8 @@ async def get_posts(
     # Zaman damgasına göre sırala (yeniden eskiye)
     all_posts.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
     all_posts = all_posts[:limit]
+
+    await analyze_sentiment_batch(all_posts)
 
     cache.set(cache_key, all_posts)
     if cache_key in ACTIVE_QUERIES:

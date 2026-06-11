@@ -288,6 +288,16 @@ function createCard(post, index) {
       ${plays}
     </div>` : '<div></div>';
 
+  // Sentiment badge
+  let sentimentBadge = '';
+  if (post.sentiment === 'positive') {
+    sentimentBadge = `<span class="card-keyword" style="background:rgba(34,197,94,0.15);color:#4ade80;border:1px solid rgba(74,222,128,0.2);">🟢 Olumlu</span>`;
+  } else if (post.sentiment === 'negative') {
+    sentimentBadge = `<span class="card-keyword" style="background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(248,113,113,0.2);">🔴 Olumsuz</span>`;
+  } else if (post.sentiment === 'neutral') {
+    sentimentBadge = `<span class="card-keyword" style="background:rgba(156,163,175,0.15);color:#9ca3af;border:1px solid rgba(156,163,175,0.2);">⚪ Nötr</span>`;
+  }
+
   card.innerHTML = `
     ${demoBadge}
     <div class="card-inner">
@@ -309,6 +319,7 @@ function createCard(post, index) {
         ${statsHtml}
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
           ${subtitle}
+          ${sentimentBadge}
           <span class="card-keyword">${esc(post.keyword || '')}</span>
           <span class="card-time">${timeAgo(post.timestamp)}</span>
           <button class="card-translate-btn" onclick="translatePost(event, this)">🌐 Çevir</button>
